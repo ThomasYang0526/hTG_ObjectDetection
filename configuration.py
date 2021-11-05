@@ -13,7 +13,7 @@ def get_txt_combine(txt_file_path, txt_item, training = None):
         for i in train_line:
             fw.write(i + '\n')                     
 
-txt_file_path = '/home/thomas_yang/ML/hTG_ObjectDetection/txt_file/pose_detection/'
+txt_file_path = './txt_file/pose_detection/'
 
 class Config:
     epochs = 50
@@ -34,8 +34,8 @@ class Config:
     test_images_during_training_step_save_frequency = 100
     training_results_save_dir = "./test_pictures/"
     
-    test_images_dir_list = [os.path.join('/home/thomas_yang/ML/hTG_ObjectDetection/test_pictures/test_sample_joint', f) 
-                            for f in os.listdir('/home/thomas_yang/ML/hTG_ObjectDetection/test_pictures/test_sample_joint')]
+    test_images_dir_list = [os.path.join('./test_pictures/test_sample_joint', f) 
+                            for f in os.listdir('./test_pictures/test_sample_joint')]
     # test_images_dir_list = ["/home/thomas_yang/ML/hTG_ObjectDetection/data/datasets/Viveland/video_1/00000009.jpg"]
 
     # network architecture
