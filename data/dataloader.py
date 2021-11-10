@@ -33,6 +33,7 @@ class DetectionDataset:
         dataset = tf.data.TextLineDataset(filenames=self.txt_file)
         length_of_dataset = DetectionDataset.__get_length_of_dataset(dataset)
         dataset = dataset.shuffle(length_of_dataset) # shuffle
+        print('Total data number: %d images' %length_of_dataset)
         train_dataset = dataset.batch(batch_size=self.batch_size)
         return train_dataset, length_of_dataset
 
@@ -74,17 +75,13 @@ class DataLoader:
         image_file_list = []
         boxes_list = []
         
-        # step_start_time = time.time()
         for n in range(batch_size):
             image_file, boxes = self.__get_image_information(single_line=batch_data[n])
             image_file_list.append(image_file)
             boxes_list.append(boxes)        
-        boxes = np.stack(boxes_list, axis=0)
-        # step_end_time = time.time()
-        # print('*****get_image_information', step_end_time - step_start_time)            
+        boxes = np.stack(boxes_list, axis=0)           
         boxes = np.stack(boxes_list, axis=0)
         
-        step_start_time = time.time()
         image_tensor_list = []
         for idx, image in enumerate(image_file_list):
             if augment == False:
@@ -93,9 +90,7 @@ class DataLoader:
                 image_tensor, boxes_ = self.image_preprocess_augmentation(is_training=True, image_dir=image, boxes=boxes[idx])
                 boxes[idx] = boxes_
             image_tensor_list.append(image_tensor)        
-        images = tf.stack(values=image_tensor_list, axis=0)
-        step_end_time = time.time()
-        # print('****image_preprocess', step_end_time - step_start_time)            
+        images = tf.stack(values=image_tensor_list, axis=0)        
         return images, boxes
 
     def __get_image_information(self, single_line):
@@ -105,7 +100,6 @@ class DataLoader:
         image_file: string, image file dir
         boxes_array: numpy array, shape = (max_boxes_per_image, 5(xmin, ymin, xmax, ymax, class_id))
         """
-        # step_start_time = time.time()
         line_string = bytes.decode(single_line.numpy(), encoding="utf-8")
         line_list = line_string.strip().split(" ")
         image_file, image_height, image_width = line_list[:3]
@@ -132,43 +126,7 @@ class DataLoader:
         boxes_array = np.array(boxes, dtype=np.float32)
         # step_end_time = time.time()
         # print('----get_image_information', step_end_time - step_start_time)          
-        return image_file, boxes_array
-
-    def show_train_data(self, images, labels, gt_heatmap, gt_wh):
-        for i in range(images.shape[0]):
-            img = (images[i].numpy()*255).astype(np.uint8)
-            for j in range(labels[i].shape[0]):
-                if labels[i, j, 4] != -1:
-                    xmin, ymin, xmax, ymax, class_id = labels[i, j, :].astype(np.int)
-                    x_c = (xmin + xmax)//2
-                    y_c = (ymin + ymax)//2
-                    w = gt_wh[i, j, 0]//2
-                    h = gt_wh[i, j, 1]//2
-                    xmin = int(x_c - w*Config.downsampling_ratio)
-                    xmax = int(x_c + w*Config.downsampling_ratio)
-                    ymin = int(y_c - h*Config.downsampling_ratio)
-                    ymax = int(y_c + h*Config.downsampling_ratio)
-                    cv2.rectangle(img, (xmin, ymin), (xmax, ymax), (0, 255, 0), 2)
-                    
-                    text_list = ['R', 'L']
-                    joint_color = [(255,0,0), (0,255,0)]
-                    if class_id != 0 and (class_id-1) > 4:
-                        cv2.putText(img=img, text=text_list[(class_id-1)%2], org=(xmin, ymin), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=0.5, color=joint_color[(class_id-1)%2], thickness=1)
-                    elif class_id == 0:
-                        cv2.putText(img=img, text='TL', org=(xmin, ymin), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=0.5, color=(0, 255, 255), thickness=1)
-                        cv2.putText(img=img, text='BR', org=(xmax, ymax), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=0.5, color=(0, 255, 255), thickness=1)
-            
-            mix_img_hm = np.copy(img[:, :, ::-1])
-            gt_hm = (cv2.resize((gt_heatmap[i]), (img.shape[0], img.shape[1])))
-            mix_img_hm[gt_hm>0.1, :] = [255, 128, 64]
-            
-            # print(labels[i])
-            cv2.imshow('train', img[:, :, ::-1])
-            cv2.imshow('mix_img_hm', mix_img_hm)
-            cv2.imshow('gt_heatmap', gt_heatmap[i]) 
-            if cv2.waitKey(0) == ord('q'):
-                cv2.destroyAllWindows()
-                sys.exit()            
+        return image_file, boxes_array           
 
     @classmethod
     def box_preprocess(cls, h, w, xmin, ymin, xmax, ymax):
@@ -240,8 +198,6 @@ class DataLoader:
                 elif box_data[box_idx, -1] > 0 and box_data[box_idx, -1] %2 == 1:
                     box_data[box_idx, -1] -= 1
                     
-            
-                
 #%%     
         return image_aug, box_data
 
@@ -258,39 +214,20 @@ class GT:
         gt_wh = np.zeros(shape=(self.batch_size, Config.max_boxes_per_image, 2), dtype=np.float32)
         gt_reg_mask = np.zeros(shape=(self.batch_size, Config.max_boxes_per_image), dtype=np.float32)
         gt_indices  = np.zeros(shape=(self.batch_size, Config.max_boxes_per_image), dtype=np.float32)
-        
-        gt_joint = np.zeros(shape=(self.batch_size, self.features_shape[0], self.features_shape[1], Config.num_joints), dtype=np.float32)
-        gt_joint_loc = np.zeros(shape=(self.batch_size, Config.max_boxes_per_image, 2*Config.num_joints), dtype=np.float32)
-        gt_joint_reg_mask = np.zeros(shape=(self.batch_size, Config.max_boxes_per_image), dtype=np.float32)
-        gt_joint_indices  = np.zeros(shape=(self.batch_size, Config.max_boxes_per_image), dtype=np.float32)        
+             
         for i, label in enumerate(self.batch_labels):
             label = label[label[:, 4] != -1]
             
             # object class part
             label_class = label[label[:, 4] == 0]
-            hm, reg, wh, reg_mask, ind, radius_list = self.__decode_label(label_class)
+            hm, reg, wh, reg_mask, ind = self.__decode_label(label_class)
             gt_heatmap[i, :, :, :] = hm
             gt_reg[i, :, :] = reg
             gt_wh[i, :, :] = wh
             gt_reg_mask[i, :] = reg_mask
             gt_indices[i, :] = ind
-            
-            # check joint radius
-            if len(radius_list) == 0:
-                radius_for_joint = 0
-            else:
-                radius_list_np = np.array(radius_list)            
-                radius_for_joint = max(min(int(np.mean(radius_list_np)/2+0.5), 17), 0)
-            
-            # joint part
-            label_joint = label[label[:, 4] != -1]
-            hm_joint, joint_loc, joint_reg_mask, joint_ind = self.__decode_label_for_joints(label_joint, radius_for_joint)
-            gt_joint[i, :, :, :] = hm_joint
-            gt_joint_loc[i, :, :] = joint_loc
-            gt_joint_reg_mask[i, :] = joint_reg_mask
-            gt_joint_indices[i, :] = joint_ind
-            
-        return gt_heatmap, gt_reg, gt_wh, gt_reg_mask, gt_indices, gt_joint, gt_joint_loc, gt_joint_reg_mask, gt_joint_indices
+                        
+        return gt_heatmap, gt_reg, gt_wh, gt_reg_mask, gt_indices
 
     def __decode_label(self, label):
         hm = np.zeros(shape=(self.features_shape[0], self.features_shape[1], Config.num_classes), dtype=np.float32)
@@ -302,9 +239,17 @@ class GT:
         for j, item in enumerate(label): #原始座標
             item_down = item[:4] / self.downsampling_ratio #原始座標/縮小比例(8)
             xmin, ymin, xmax, ymax = item_down
+            
+            xmin = max(0, xmin)
+            ymin = max(0, ymin)
+            xmax = min(self.features_shape[1], xmax)
+            ymax = min(self.features_shape[0], ymax)
+            
             class_id = item[4].astype(np.int32)
-            h, w = int(ymax - ymin), int(xmax - xmin)
-            radius = gaussian_radius((h, w))
+            # h, w = int(ymax - ymin), int(xmax - xmin)
+            # radius = gaussian_radius((h, w))
+            h, w = ymax - ymin, xmax - xmin
+            radius = gaussian_radius((int(h), int(w)))
             radius = max(0, int(radius))   
             radius_list.append(radius)
             ctr_x, ctr_y = (xmin + xmax) / 2, (ymin + ymax) / 2
@@ -312,110 +257,47 @@ class GT:
             center_point_int = center_point.astype(np.int32)
             draw_umich_gaussian(hm[:, :, class_id], center_point_int, radius)
             reg[j] = center_point - center_point_int
+            # print(reg[j], center_point, center_point_int, xmin, ymin, xmax, ymax)
             wh[j] = 1. * w, 1. * h
             reg_mask[j] = 1
             ind[j] = center_point_int[1] * self.features_shape[1] + center_point_int[0]            
-        return hm, reg, wh, reg_mask, ind, radius_list
-
-    def __decode_label_for_joints(self, label, radius):
-        hm_joint = np.zeros(shape=(self.features_shape[0], self.features_shape[1], Config.num_joints), dtype=np.float32)
-        joint_loc = np.zeros(shape=(Config.max_boxes_per_image, 2*Config.num_joints), dtype=np.float32)
-        joint_reg_mask = np.zeros(shape=(Config.max_boxes_per_image), dtype=np.float32)
-        joint_ind = np.zeros(shape=(Config.max_boxes_per_image), dtype=np.float32)
-        object_num = -1
-        for j, item in enumerate(label): #原始座標
-            item[:4] = item[:4] / self.downsampling_ratio #原始座標/縮小比例(8)
-            xmin, ymin, xmax, ymax, class_id = item
-            class_id = class_id.astype(np.int32) - 1 #(joint label start from 1)
-            ctr_x, ctr_y = (xmin + xmax) / 2, (ymin + ymax) / 2
-            if class_id == -1:
-                object_num += 1
-                cen_x, cen_y = (xmin + xmax) / 2, (ymin + ymax) / 2
-                object_center_point = np.array([cen_x, cen_y], dtype=np.float32)
-                object_center_point_int = object_center_point.astype(np.int)
-                joint_reg_mask[object_num] = 1
-                joint_ind[object_num] =  object_center_point_int[1] * self.features_shape[1] + object_center_point_int[0]                
-                continue
-            
-            center_point = np.array([ctr_x, ctr_y], dtype=np.float32)
-            center_point_int = center_point.astype(np.int32)
-            draw_umich_gaussian(hm_joint[:, :, class_id], center_point_int, radius)                        
-            joint_loc[object_num, class_id*2: class_id*2+2] = np.array([ctr_x, ctr_y], dtype=np.float32) - object_center_point_int
-
-        return hm_joint, joint_loc, joint_reg_mask, joint_ind
-
-class PickleHandle:
-    @staticmethod
-    def save_pickle(images, labels, step):
-        pickle_data_path = '/home/thomas_yang/ML/CenterNet_TensorFlow2/data/datasets/PickleData/train/'
-        line_string = bytes.decode(batch_data[0].numpy(), encoding="utf-8")
-        line_list = line_string.strip().split(" ")
-        image_file, image_height, image_width = line_list[:3]
-        
-        pickle_data_save_name = pickle_data_path + '%08d' %step  + '.pickle'
-        pickle_image_save_name = pickle_data_path + '%08d_image_file' %step  + '.pickle'
-
-        gt = GT(labels)
-        gt_heatmap, gt_reg, gt_wh, gt_reg_mask, gt_indices, gt_joint, gt_joint_loc, gt_joint_reg_mask, gt_joint_indices = gt.get_gt_values()
-        gt_info = {'image_file':image_file,
-                    'image_height':image_height,
-                    'image_width':image_width,
-                    'gt_heatmap' : gt_heatmap, 
-                    'gt_reg' : gt_reg, 
-                    'gt_wh' : gt_wh, 
-                    'gt_reg_mask' : gt_reg_mask, 
-                    'gt_indices' : gt_indices, 
-                    'gt_joint' : gt_joint, 
-                    'gt_joint_loc' : gt_joint_loc, 
-                    'gt_joint_reg_mask' : gt_joint_reg_mask, 
-                    'gt_joint_indices' : gt_joint_indices}           
-        with open(pickle_data_save_name, 'wb') as handle:
-            pickle.dump(gt_info, handle, protocol=pickle.HIGHEST_PROTOCOL)
-
-        image_file_info = {'image_file':image_file,
-                           'image_value':images[0]}
-        with open(pickle_image_save_name, 'wb') as handle:
-            pickle.dump(image_file_info, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        return hm, reg, wh, reg_mask, ind
 
 if __name__ == '__main__':
     train_dataset = DetectionDataset()
     train_data, train_size = train_dataset.generate_datatset()    
     data_loader = DataLoader()
     steps_per_epoch = tf.math.ceil(train_size / Config.batch_size)
-    # ph = PickleHandle()
     for step, batch_data in enumerate(train_data): 
+        if step != 302:
+            continue
         print(step, '------------------------', train_size)
         # load data 
-        images, labels = data_loader.read_batch_data(batch_data, augment = False)
-        
+        images, labels = data_loader.read_batch_data(batch_data, augment = False)        
         img_rgb = np.array((images.numpy()*255).astype(np.uint8)[0][...,::-1])
-        # ph.save_pickle(images, labels, step)
         
         gt = GT(labels)
-        gt_heatmap, gt_reg, gt_wh, gt_reg_mask, gt_indices, gt_joint, gt_joint_loc, gt_joint_reg_mask, gt_joint_indices = gt.get_gt_values()
-        
-        gt_joint_max = (np.expand_dims(np.max(gt_joint[0], axis=-1), 2)*255).astype(np.uint8)
-        gt_joint_max = cv2.resize(gt_joint_max, (Config.image_size["mobilenetv2"]))
- 
-        B, H, W, C = gt_joint.shape
-        indice = gt_joint_indices[gt_joint_reg_mask==1]
-        mask_gt_joint_loc = gt_joint_loc[gt_joint_reg_mask==1]
+        gt_heatmap, gt_reg, gt_wh, gt_reg_mask, gt_indices = gt.get_gt_values()
+
+        B, H, W, C = gt_heatmap.shape
+        indice = gt_indices[gt_reg_mask==1]
+        mask_gt_wh = gt_wh[gt_reg_mask==1]
 
         topk_xs = (indice % W).astype(np.int)
         topk_ys = (indice // W).astype(np.int)
         
         for i in range(topk_xs.shape[0]):            
             cv2.circle(img_rgb, (topk_xs[i]*4, topk_ys[i]*4), 4, (0, 255, 0), -1)
-            for j in range(Config.num_joints):
-                x = int(mask_gt_joint_loc[i,j*2+0]*4+topk_xs[i]*4)
-                y = int(mask_gt_joint_loc[i,j*2+1]*4+topk_ys[i]*4)
-                cv2.line(img_rgb, (x, y), (topk_xs[i]*4, topk_ys[i]*4), (0, 255, 255), 1)
+            for j in range(topk_xs.shape[0]):
+                xmin = int(-mask_gt_wh[i,0]*4/2+topk_xs[i]*4)
+                ymin = int(-mask_gt_wh[i,1]*4/2+topk_ys[i]*4)
+                xmax = int(mask_gt_wh[i,0]*4/2+topk_xs[i]*4)
+                ymax = int(mask_gt_wh[i,1]*4/2+topk_ys[i]*4)
+                cv2.rectangle(img_rgb, (xmin, ymin), (xmax, ymax), (0, 255, 255), 1)
         
-        
-        cv2.imshow('img_ori', img_rgb)
-        img_rgb[gt_joint_max>0,-1] = gt_joint_max[gt_joint_max>0]
         cv2.imshow('img', img_rgb)
-        if cv2.waitKey(1) == ord('q'):
+        cv2.imshow('gt_heatmap', cv2.resize(gt_heatmap[0], (416, 416)))
+        if cv2.waitKey(0) == ord('q'):
             break        
 
-    cv2.destroyAllWindows()             
+    cv2.destroyAllWindows()

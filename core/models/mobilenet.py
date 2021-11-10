@@ -165,26 +165,26 @@ def MobileNetV2(training=None, plot_model=True):
         else:
             bbox_stage = tf.keras.layers.add([bbox_stage, bbox_stage_, bbox_up])
 
-    joint_up = feature_map
-    for i in range(up_num+1):
-        joint_up = _make_transposed_conv_layer(joint_up, num_filters, num_kernels, FPN, training=training, name='joint_transPoseConv%d_' %i)
-        if i == up_num:
-            break
-        joint_up = _downsample_conv_layer(joint_up, num_filters, kernel=(3, 3), strides=(2, 2), training=training, name='joint_downSample%d_' %i) 
+    # joint_up = feature_map
+    # for i in range(up_num+1):
+    #     joint_up = _make_transposed_conv_layer(joint_up, num_filters, num_kernels, FPN, training=training, name='joint_transPoseConv%d_' %i)
+    #     if i == up_num:
+    #         break
+    #     joint_up = _downsample_conv_layer(joint_up, num_filters, kernel=(3, 3), strides=(2, 2), training=training, name='joint_downSample%d_' %i) 
     
-    joint_stage = joint_up
-    for i in range(stage_num_joint+1):
-        joint_stage_ = _conv_block(joint_stage, neck_channel, kernel=kernel_neck, strides=(1, 1), training=training, name='neck_joint3x3_1_%d_' %i)
-        joint_stage_ = _conv_block(joint_stage_, neck_channel, kernel=kernel_neck, strides=(1, 1), training=training, name='neck_joint3x3_2_%d_' %i)
-        joint_stage_ = _dilate_conv_block(joint_stage_, neck_channel, kernel=kernel_neck, dilation_rate=dilation_rate, training=training, name='neck_dilate_joint3x3_1_%d_' %i)
-        joint_stage_ = _dilate_conv_block(joint_stage_, neck_channel, kernel=kernel_neck, dilation_rate=dilation_rate, training=training, name='neck_dilate_joint3x3_2_%d_' %i)
-        joint_stage_ = _conv_block(joint_stage_, neck_channel, kernel=(1, 1), strides=(1, 1), training=training, name='neck_joint1x1%d_' %i)
-        if i == stage_num_joint:
-            break
-        if i == 0:
-            joint_stage = tf.keras.layers.add([joint_stage_, joint_up])
-        else:
-            joint_stage = tf.keras.layers.add([joint_stage, joint_stage_, joint_up])
+    # joint_stage = joint_up
+    # for i in range(stage_num_joint+1):
+    #     joint_stage_ = _conv_block(joint_stage, neck_channel, kernel=kernel_neck, strides=(1, 1), training=training, name='neck_joint3x3_1_%d_' %i)
+    #     joint_stage_ = _conv_block(joint_stage_, neck_channel, kernel=kernel_neck, strides=(1, 1), training=training, name='neck_joint3x3_2_%d_' %i)
+    #     joint_stage_ = _dilate_conv_block(joint_stage_, neck_channel, kernel=kernel_neck, dilation_rate=dilation_rate, training=training, name='neck_dilate_joint3x3_1_%d_' %i)
+    #     joint_stage_ = _dilate_conv_block(joint_stage_, neck_channel, kernel=kernel_neck, dilation_rate=dilation_rate, training=training, name='neck_dilate_joint3x3_2_%d_' %i)
+    #     joint_stage_ = _conv_block(joint_stage_, neck_channel, kernel=(1, 1), strides=(1, 1), training=training, name='neck_joint1x1%d_' %i)
+    #     if i == stage_num_joint:
+    #         break
+    #     if i == 0:
+    #         joint_stage = tf.keras.layers.add([joint_stage_, joint_up])
+    #     else:
+    #         joint_stage = tf.keras.layers.add([joint_stage, joint_stage_, joint_up])
     
     # detect head 
     heatmap = tf.keras.layers.Conv2D(filters=Config.head_conv["mobilenetv2"], kernel_size=(3, 3), strides=1, padding="same", use_bias=False, name='heatmap_conv1')(bbox_stage)
@@ -202,20 +202,20 @@ def MobileNetV2(training=None, plot_model=True):
     wh = tf.keras.layers.ReLU(name='wh_relu')(wh)
     wh = tf.keras.layers.Conv2D(filters=Config.heads["wh"], kernel_size=(1, 1), strides=1, padding="valid", name='wh_conv2')(wh)
     
-    joint = tf.keras.layers.Conv2D(filters=Config.head_conv["mobilenetv2"], kernel_size=(3, 3), strides=1, padding="same", use_bias=False, name='joint_conv1')(joint_stage)
-    joint = tf.keras.layers.BatchNormalization(name='joint_bn')(joint)
-    joint = tf.keras.layers.ReLU(name='joint_relu')(joint)
-    joint = tf.keras.layers.Conv2D(filters=Config.heads["joint"], kernel_size=(1, 1), strides=1, padding="valid", activation='sigmoid', name='joint_conv2')(joint)
+    #joint = tf.keras.layers.Conv2D(filters=Config.head_conv["mobilenetv2"], kernel_size=(3, 3), strides=1, padding="same", use_bias=False, name='joint_conv1')(joint_stage)
+    #joint = tf.keras.layers.BatchNormalization(name='joint_bn')(joint)
+    #joint = tf.keras.layers.ReLU(name='joint_relu')(joint)
+    #joint = tf.keras.layers.Conv2D(filters=Config.heads["joint"], kernel_size=(1, 1), strides=1, padding="valid", activation='sigmoid', name='joint_conv2')(joint)
 
-    joint_loc = tf.keras.layers.Conv2D(filters=Config.head_conv["mobilenetv2"], kernel_size=(3, 3), strides=1, padding="same", use_bias=False, name='joint_loc_conv1')(joint_stage)
-    joint_loc = tf.keras.layers.BatchNormalization(name='joint_loc_bn')(joint_loc)
-    joint_loc = tf.keras.layers.ReLU(name='joint_loc_relu')(joint_loc)
-    joint_loc = tf.keras.layers.Conv2D(filters=Config.heads["joint_loc"], kernel_size=(1, 1), strides=1, padding="valid", activation=None, name='joint_loc_conv2')(joint_loc)
+    #joint_loc = tf.keras.layers.Conv2D(filters=Config.head_conv["mobilenetv2"], kernel_size=(3, 3), strides=1, padding="same", use_bias=False, name='joint_loc_conv1')(joint_stage)
+    #joint_loc = tf.keras.layers.BatchNormalization(name='joint_loc_bn')(joint_loc)
+    #joint_loc = tf.keras.layers.ReLU(name='joint_loc_relu')(joint_loc)
+    #joint_loc = tf.keras.layers.Conv2D(filters=Config.heads["joint_loc"], kernel_size=(1, 1), strides=1, padding="valid", activation=None, name='joint_loc_conv2')(joint_loc)
     
     
     # outputs=[heatmap, reg, wh, joint, joint_loc]
     # outputs=[heatmap, reg, wh]
-    outputs = tf.keras.layers.concatenate(inputs=[heatmap, reg, wh, joint, joint_loc], axis=-1)
+    outputs = tf.keras.layers.concatenate(inputs=[heatmap, reg, wh], axis=-1)
     model = tf.keras.models.Model(inputs, outputs=outputs)
     model.summary()
     if plot_model:
@@ -228,10 +228,7 @@ def MobileNetV2(training=None, plot_model=True):
 if __name__ == '__main__':
     model = MobileNetV2()
     pre = model(np.ones((Config.batch_size, Config.get_image_size()[0], Config.get_image_size()[1], Config.image_channels)), True)
-    model.summary()
-    print('Plot model *****************')
-    tf.keras.utils.plot_model(model, to_file='/home/thomas_yang/ML/CenterNet_TensorFlow2/model.png', show_shapes=True)
-    tf.keras.models.save_model(model, filepath='/home/thomas_yang/ML/CenterNet_TensorFlow2/saved_model/' + "saved_model", include_optimizer=False, save_format="tf")
+    # tf.keras.models.save_model(model, filepath='/home/thomas_yang/ML/CenterNet_TensorFlow2/saved_model/' + "saved_model", include_optimizer=False, save_format="tf")
     # model.save_weights(filepath='/home/thomas_yang/ML/CenterNet_TensorFlow2/saved_model/'+"test-model.h5", save_format="h5")
 
 

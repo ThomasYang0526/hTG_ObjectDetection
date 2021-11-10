@@ -29,13 +29,11 @@ def test_single_picture(picture_dir, model):
 
     outputs = model(image, training=False)
     post_process = PostProcessing()
-    joint_hm = outputs[:,:,:, 5:5 + Config.num_joints]
-    joint_loc = outputs[..., 5 + Config.num_joints:]
     
-    boxes, scores, classes, bboxes_joint, scores_joint, clses_joint = post_process.testing_procedure(outputs, [image_array.shape[0], image_array.shape[1]])
+    boxes, scores, classes = post_process.testing_procedure(outputs, [image_array.shape[0], image_array.shape[1]])
     print(scores, classes)
     
-    image_with_boxes = draw_boxes_joint_on_image(image_array, boxes.astype(np.int), scores, classes, joint_hm, joint_loc)
+    image_with_boxes = draw_boxes_joint_on_image(image_array, boxes.astype(np.int), scores, classes)
     
     return image_with_boxes
 

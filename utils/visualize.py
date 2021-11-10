@@ -1,5 +1,5 @@
 import cv2
-from test import test_single_picture
+from test_model import test_single_picture
 from configuration import Config
 
 

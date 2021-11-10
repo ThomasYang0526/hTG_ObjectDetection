@@ -28,3 +28,5 @@ utils/__pycache__/
 *.v2
 
 __pycache__/
+
+saved_model/

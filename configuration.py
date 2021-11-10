@@ -4,9 +4,10 @@ txt_file_path = './txt_file/pose_detection/'
 
 class Config:
     epochs = 50
-    batch_size = 12
+    batch_size = 20
+    batch_cumulate = 8
     learning_rate_decay_epochs = 10
-    learning_rate_decay_step = 5000
+    learning_rate_decay_step = 30000
 
     # save model
     save_frequency = 1
@@ -18,7 +19,7 @@ class Config:
     test_single_image_dir = "./test_pictures/street.jpg"
     test_images_during_training = True
     val_images_during_training_step_save_frequency = 400
-    test_images_during_training_step_save_frequency = 100
+    test_images_during_training_step_save_frequency = 160
     training_results_save_dir = "./test_pictures/"
     
     test_images_dir_list = [os.path.join('./test_pictures/test_sample_joint', f) 
@@ -54,21 +55,30 @@ class Config:
     num_joints_loc = 34
 
     # train txt file    
-    train_txt_item = ['vive_land_autolabel_vote_1_.txt',
-                      'vive_land_autolabel_vote_2_.txt',
-                      'vive_land_autolabel_vote_3_.txt',
-                      'vive_land_autolabel_vote_7_.txt',
-                      'crowpose_autolabel_vote.txt',
-                      'mpii_autolabel_vote.txt',
-                      'mhp_autolabel_vote.txt']      
+    # train_txt_item = ['MOT_16.txt',]
+    train_txt_item = ['crowdhuman_train.txt',
+                      'crowdhuman_val.txt',]
+                      #'MOT_16.txt',
+                      #'vive_land_autolabel_vote_1_.txt',
+                      #'vive_land_autolabel_vote_2_.txt',
+                      #'vive_land_autolabel_vote_3_.txt',
+                      #'vive_land_autolabel_vote_7_.txt',]
+    
+    # train_txt_item = ['vive_land_autolabel_vote_1_.txt',
+                      # 'vive_land_autolabel_vote_2_.txt',
+                      # 'vive_land_autolabel_vote_3_.txt',
+                      # 'vive_land_autolabel_vote_7_.txt',]
+                      # 'crowpose_autolabel_vote.txt',
+                      # 'mpii_autolabel_vote.txt',
+                      # 'mhp_autolabel_vote.txt']
     txt_file_dir = [txt_file_path + i for i in train_txt_item]
     
     # val txt file
     val_txt_item = ['validation_vive_land_manual_16.txt']
     val_txt_file_dir = [txt_file_path + i for i in val_txt_item]
         
-    max_boxes_per_image = 50
-    max_joints_per_image = 50
+    max_boxes_per_image = 150
+    max_joints_per_image = 150
 
     # efficientdet
     width_coefficient = {"D0": 1.0, "D1": 1.0, "D2": 1.1, "D3": 1.2, "D4": 1.4, "D5": 1.6, "D6": 1.8, "D7": 1.8}
@@ -85,7 +95,7 @@ class Config:
            6-Rsho    7-Lelb    8-Relb    9-Lwri    10-Rwri  11-Lhip
            12-Rhip   13-Lkne   14-Rkne   15-Lank   16-Rank
     """
-    heads = {"heatmap": num_classes, "wh": 2, "reg": 2, "joint": 17, "joint_loc": 34}
+    heads = {"heatmap": num_classes, "wh": 2, "reg": 2}
     
     head_conv = {"no_conv_layer": 0, "resnets": 64, "dla": 256,
                  "D0": w_bifpn["D0"], "D1": w_bifpn["D1"], "D2": w_bifpn["D2"], "D3": w_bifpn["D3"],

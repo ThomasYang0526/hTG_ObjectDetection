@@ -8,8 +8,8 @@ Created on Wed Sep 29 13:40:33 2021
 
 import cv2
 
-txt_path = '/home/thomas_yang/ML/CenterNet_TensorFlow2/txt_file/pose_detection/'
-txt_file = 'vive_land_autolabel_vote_3.txt'
+txt_path = '/home/thomas_yang/ML/hTG_ObjectDetection/txt_file/pose_detection/'
+txt_file = 'MOT_16.txt'
 circle_color = [(0, 0, 255), (0, 255, 0)]
 joint_color = [(255,0,255), (0,255,255)]
 circle_radius = [5, 7]
@@ -43,7 +43,7 @@ with open(txt_path + txt_file, 'r') as f:
                             fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=0.5, 
                             color=(200,200,0), thickness=1)         
         
-        img = cv2.resize(img, (960, 540))
+        img = cv2.resize(img, (512, 512))
         cv2.imshow('img', img)
         print(line_idx)
         if cv2.waitKey(1) == ord('q'):

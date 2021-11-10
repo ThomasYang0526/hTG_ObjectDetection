@@ -96,25 +96,22 @@ class CombinedLoss:
         self.reg_loss_object = RegL1Loss()
         self.wh_loss_object = RegL1Loss()
         
-        self.joint_loss_object = FocalLoss()
-        self.joint_loc_loss_object = RegL1Loss_joint_loc()
+        # self.joint_loss_object = FocalLoss()
+        # self.joint_loc_loss_object = RegL1Loss_joint_loc()
 
-    def __call__(self, y_pred, heatmap_true, reg_true, wh_true, reg_mask, indices, joint_true, joint_loc_true, joint_reg_mask, joint_indices, *args, **kwargs):
-        heatmap, reg, wh, joint, joint_loc = tf.split(value=y_pred, num_or_size_splits=[Config.num_classes, 2, 2, Config.num_joints, Config.num_joints_loc], axis=-1)
+    def __call__(self, y_pred, heatmap_true, reg_true, wh_true, reg_mask, indices, *args, **kwargs):
+        # print('*****************', y_pred.shape)
+        heatmap, reg, wh = tf.split(value=y_pred, num_or_size_splits=[Config.num_classes, 2, 2], axis=-1)
         heatmap_loss = self.heatmap_loss_object(y_true=heatmap_true, y_pred=heatmap)
         off_loss = self.reg_loss_object(y_true=reg_true, y_pred=reg, mask=reg_mask, index=indices)
         wh_loss  = self.wh_loss_object(y_true=wh_true, y_pred=wh, mask=reg_mask, index=indices)
         
-        joint_loss = self.joint_loss_object(y_true=joint_true[...,5:], y_pred=joint[...,5:])
-        joint_loc_loss = self.joint_loc_loss_object(y_true=joint_loc_true, y_pred=joint_loc, mask=joint_reg_mask, index=joint_indices)
+        # joint_loss = self.joint_loss_object(y_true=joint_true[...,5:], y_pred=joint[...,5:])
+        # joint_loc_loss = self.joint_loc_loss_object(y_true=joint_loc_true, y_pred=joint_loc, mask=joint_reg_mask, index=joint_indices)
         
         total_loss = (Config.hm_weight * heatmap_loss + 
                       Config.off_weight * off_loss + 
-                      Config.wh_weight * wh_loss + 
-                      Config.joint_weight * joint_loss+
-                      Config.joint_loc_weight * joint_loc_loss)
-        return total_loss, heatmap_loss, wh_loss, off_loss, joint_loss, joint_loc_loss
-    
-    
+                      Config.wh_weight * wh_loss)
+        return total_loss, heatmap_loss, wh_loss, off_loss
     
     

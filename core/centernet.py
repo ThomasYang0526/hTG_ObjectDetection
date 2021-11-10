@@ -37,19 +37,15 @@ class PostProcessing:
     @staticmethod
     def training_procedure(batch_labels, pred):
         gt = GT(batch_labels)
-        gt_heatmap, gt_reg, gt_wh, gt_reg_mask, gt_indices, gt_joint, gt_joint_loc, gt_joint_reg_mask, gt_joint_indices = gt.get_gt_values()
+        gt_heatmap, gt_reg, gt_wh, gt_reg_mask, gt_indices = gt.get_gt_values()
         loss_object = CombinedLoss()
-        total_loss, heatmap_loss, wh_loss, off_loss, joint_loss, joint_loc_loss = loss_object(y_pred=pred, 
-                                                                                              heatmap_true=gt_heatmap, 
-                                                                                              reg_true=gt_reg, 
-                                                                                              wh_true=gt_wh, 
-                                                                                              reg_mask=gt_reg_mask, 
-                                                                                              indices=gt_indices,
-                                                                                              joint_true = gt_joint, 
-                                                                                              joint_loc_true = gt_joint_loc,
-                                                                                              joint_reg_mask = gt_joint_reg_mask,
-                                                                                              joint_indices = gt_joint_indices)
-        return total_loss, heatmap_loss, wh_loss, off_loss, joint_loss, joint_loc_loss, gt_heatmap, gt_reg, gt_wh, gt_reg_mask, gt_indices, gt_joint, gt_joint_loc, gt_joint_reg_mask, gt_joint_indices
+        total_loss, heatmap_loss, wh_loss, off_loss = loss_object(y_pred=pred, 
+                                                                  heatmap_true=gt_heatmap, 
+                                                                  reg_true=gt_reg, 
+                                                                  wh_true=gt_wh, 
+                                                                  reg_mask=gt_reg_mask, 
+                                                                  indices=gt_indices)
+        return total_loss, heatmap_loss, wh_loss, off_loss, gt_heatmap, gt_reg, gt_wh, gt_reg_mask, gt_indices
 
     @staticmethod
     def testing_procedure(pred, original_image_size):
@@ -59,10 +55,10 @@ class PostProcessing:
         scores = detections[0][:, 4]
         clses = detections[0][:, 5]
 
-        bboxes_joint = detections[1][:, 0:2]
-        scores_joint = detections[1][:, 2]
-        clses_joint = detections[1][:, 3]
-        return bboxes, scores, clses, bboxes_joint, scores_joint, clses_joint
+        # bboxes_joint = detections[1][:, 0:2]
+        # scores_joint = detections[1][:, 2]
+        # clses_joint = detections[1][:, 3]
+        return bboxes, scores, clses
 
 
 class Decoder:
@@ -75,7 +71,7 @@ class Decoder:
         self.score_threshold = Config.score_threshold
 
     def __call__(self, pred, *args, **kwargs):
-        heatmap, reg, wh, joint, joint_loc = tf.split(value=pred, num_or_size_splits=[Config.num_classes, 2, 2, Config.num_joints, Config.num_joints_loc], axis=-1)
+        heatmap, reg, wh= tf.split(value=pred, num_or_size_splits=[Config.num_classes, 2, 2], axis=-1)
         # heatmap = tf.math.sigmoid(heatmap)
         batch_size = heatmap.shape[0]
         heatmap = Decoder.__nms(heatmap)        
@@ -97,16 +93,16 @@ class Decoder:
         detections = tf.concat(values=[bboxes, scores, clses], axis=2)        
         # print(bboxes.shape, scores.shape, clses.shape)
         
-        joint = Decoder.__nms(joint)
-        scores_joint, _, clses_joint, ys_joint, xs_joint = Decoder.__topK(scores=joint, K=self.J)
-        xs_joint = tf.reshape(xs_joint, shape=(batch_size, self.J, 1)) + 0.5
-        ys_joint = tf.reshape(ys_joint, shape=(batch_size, self.J, 1)) + 0.5   
-        clses_joint = tf.cast(tf.reshape(clses_joint, (batch_size, self.J, 1)), dtype=tf.float32)
-        scores_joint = tf.reshape(scores_joint, (batch_size, self.J, 1))
-        bboxes_joint = tf.concat(values=[xs_joint,
-                                         ys_joint], axis=2)
-        detections_joint = tf.concat(values=[bboxes_joint, scores_joint, clses_joint], axis=2)
-        return [self.__map_to_original(detections), self.__map_joint_to_original(detections_joint)]
+        # joint = Decoder.__nms(joint)
+        # scores_joint, _, clses_joint, ys_joint, xs_joint = Decoder.__topK(scores=joint, K=self.J)
+        # xs_joint = tf.reshape(xs_joint, shape=(batch_size, self.J, 1)) + 0.5
+        # ys_joint = tf.reshape(ys_joint, shape=(batch_size, self.J, 1)) + 0.5   
+        # clses_joint = tf.cast(tf.reshape(clses_joint, (batch_size, self.J, 1)), dtype=tf.float32)
+        # scores_joint = tf.reshape(scores_joint, (batch_size, self.J, 1))
+        # bboxes_joint = tf.concat(values=[xs_joint,
+        #                                  ys_joint], axis=2)
+        # detections_joint = tf.concat(values=[bboxes_joint, scores_joint, clses_joint], axis=2)
+        return [self.__map_to_original(detections)]
         # return self.__map_to_original(detections)
 
     def __map_to_original(self, detections):
@@ -119,19 +115,6 @@ class Decoder:
         bboxes[:, 1::2] = np.clip(a=bboxes[:, 1::2], a_min=0, a_max=self.original_image_size[0])
         score_mask = scores >= self.score_threshold
         bboxes, scores, clses = Decoder.__numpy_mask(bboxes, np.tile(score_mask, (1, 4))), Decoder.__numpy_mask(scores, score_mask), Decoder.__numpy_mask(clses, score_mask)
-        detections = np.concatenate([bboxes, scores, clses], axis=-1)
-        return detections
-
-    def __map_joint_to_original(self, detections):
-        bboxes, scores, clses = tf.split(value=detections, num_or_size_splits=[2, 1, 1], axis=2)
-        bboxes, scores, clses = bboxes.numpy()[0], scores.numpy()[0], clses.numpy()[0]
-        resize_ratio = self.original_image_size / self.input_image_size
-        bboxes[:, 0::2] = bboxes[:, 0::2] * self.downsampling_ratio * resize_ratio[1]
-        bboxes[:, 1::2] = bboxes[:, 1::2] * self.downsampling_ratio * resize_ratio[0]
-        bboxes[:, 0::2] = np.clip(a=bboxes[:, 0::2], a_min=0, a_max=self.original_image_size[1])
-        bboxes[:, 1::2] = np.clip(a=bboxes[:, 1::2], a_min=0, a_max=self.original_image_size[0])
-        score_mask = scores >= self.score_threshold
-        bboxes, scores, clses = Decoder.__numpy_mask(bboxes, np.tile(score_mask, (1, 2))), Decoder.__numpy_mask(scores, score_mask), Decoder.__numpy_mask(clses, score_mask)
         detections = np.concatenate([bboxes, scores, clses], axis=-1)
         return detections
 
